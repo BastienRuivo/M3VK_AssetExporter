@@ -1,0 +1,22 @@
+# Ignore build output
+build/
+
+# Ignore GitHub workflows or metadata
+.github/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore cache files
+.cache/
+
+# Ignore tools
+tools/
+
+# Ignore clang format
+.clang-format
+
+# Ignore workspace
+M3VK.code-workspace
+
+data/Bistro_v5_2/**
