@@ -2,6 +2,7 @@
 
 #include "asset/Vertex.h"
 #include "assimp/material.h"
+#include "glm/fwd.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -9,7 +10,11 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#define VERSION 1
+// V0 -> Initial Version
+// V1 -> Added BaseColor, Metallic, Roughness textures ID
+// V2 -> Added AABB
+
+#define VERSION 2
 
 enum TextureType
 {
@@ -67,6 +72,8 @@ struct SubMeshExport
     uint32_t VertexCount;
     uint32_t IndexOffset;
     uint32_t IndexCount;
+    glm::vec3 AABBMin;
+    glm::vec3 AABBMax;
 };
 
 struct AssetExporterHeader

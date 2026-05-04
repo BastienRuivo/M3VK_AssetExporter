@@ -326,6 +326,7 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
         | aiProcess_GlobalScale     // Handles FBX unit scaling (cm to m)
         | aiProcess_PreTransformVertices // Collapses the node hierarchy into the verticess
         | aiProcess_GenNormals
+        | aiProcess_GenBoundingBoxes
     );
 
     if(scene == nullptr)
@@ -422,7 +423,9 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             .VertexOffset = meshOffset,
             .VertexCount = mesh->mNumVertices,
             .IndexOffset = indexOffset,
-            .IndexCount = mesh->mNumFaces * 3
+            .IndexCount = mesh->mNumFaces * 3,
+            .AABBMin = glm::vec3(mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z),
+            .AABBMax = glm::vec3(mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z)
         };
 
         meshOffset += mesh->mNumVertices;
