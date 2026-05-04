@@ -95,7 +95,7 @@ std::filesystem::path FindTextureRoot(std::filesystem::path current_path) {
 
     DebugLayer::Log(DebugLayer::LogType::WARNING, "Could not find textures directory " + current_path.string());
 
-    return {}; // Return empty path if not found
+    return current_path.remove_filename();
 }
 
 uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue)
@@ -354,27 +354,21 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
         ai_real roughness;
         material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
 
+        uint32_t baseColorID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
+        uint32_t normalMapID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
+        uint32_t mraoID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
 
-        MaterialProperties gpuMaterial
+        exporter.Materials[i] =
         {
+            .BaseColorTexId = baseColorID,
+            .NormalMapTexId = normalMapID,
+            .MRAOTexId = mraoID,
             .BaseColor = glm::vec4(static_cast<float>(color.r),
                 static_cast<float>(color.g),
                 static_cast<float>(color.b),
                 static_cast<float>(color.a)),
             .Metallic = static_cast<float>(metallic),
             .Roughness = static_cast<float>(roughness)
-        };
-
-        uint32_t baseColorID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
-        uint32_t normalMapID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
-        uint32_t mraoID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
-
-        exporter.Materials[i]  =
-        {
-            .BaseColorTexId = baseColorID,
-            .NormalMapTexId = normalMapID,
-            .MRAOTexId = mraoID,
-            .MatProperties = gpuMaterial
         };
     }
 
@@ -501,7 +495,7 @@ void AssetExporter::Write(const AssetExporter& exporter, const std::filesystem::
     fwrite(&exporter.Header, sizeof(AssetExporterHeader), 1, file);
 
     // DATAS
-    fwrite(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
+    fwrite(exporter.Materials.data(), sizeof(MaterialProperties), exporter.Header.MaterialCount, file);
     fwrite(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
     fwrite(exporter.SubMeshes.data(), sizeof(SubMeshExport), exporter.Header.SubMeshCount, file);
     fwrite(exporter.VertexDatas.data(), sizeof(Vertex), exporter.Header.VertexCount, file);
@@ -542,7 +536,7 @@ bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& s
 
     // DATAS
     exporter.Materials.resize(exporter.Header.MaterialCount);
-    fread(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
+    fread(exporter.Materials.data(), sizeof(MaterialProperties), exporter.Header.MaterialCount, file);
 
     exporter.Textures.resize(exporter.Header.TextureCount);
     fread(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
