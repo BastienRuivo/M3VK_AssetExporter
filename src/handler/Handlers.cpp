@@ -82,8 +82,8 @@ VkDeviceHandler::VkDeviceHandler(const std::vector<const char*>& deviceExtension
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
 
-        .enabledLayerCount = DebugLayer::Enabled ? static_cast<uint32_t>(DebugLayer::ValidationLayer.size()) : 0,
-        .ppEnabledLayerNames = DebugLayer::Enabled ? DebugLayer::ValidationLayer.data() : nullptr,
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
 
         .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
         .ppEnabledExtensionNames = deviceExtensions.data(),

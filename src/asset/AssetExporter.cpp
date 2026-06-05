@@ -11,6 +11,8 @@
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
+#include "assimp/types.h"
+#include "libs/tinyddsloader.h"
 #include "rendering/CommandBuffer.h"
 #include "rendering/GPUImage.h"
 #include "rendering/GraphicsBuffer.h"
@@ -98,12 +100,21 @@ std::filesystem::path FindTextureRoot(std::filesystem::path current_path) {
     return current_path.remove_filename();
 }
 
-uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue)
+MaterialType AssetExporter::GetMaterialType(const aiMaterial* material)
 {
+    return MaterialType::Opaque;
+}
+
+TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue)
+{
+    TextureLoadingInfo info
+    {
+        .Id = static_cast<uint32_t>(UINT32_MAX),
+        .Format = VK_FORMAT_UNDEFINED
+    };
     uint32_t textureCount = 0;
     aiTextureType textureType = AssetHelper::SelectTextureType(types, material, textureCount);
-
-    if(textureCount == 0) return UINT32_MAX;
+    if(textureCount == 0) return info;
 
     aiString path;
     material->GetTexture(textureType, 0, &path);
@@ -111,7 +122,7 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
     if(path.length == 0)
     {
         DebugLayer::Log(DebugLayer::LogType::WARNING, "Found a texture with a 0 length path");
-        return UINT32_MAX;
+        return info;
     }
 
     std::string rawPath = path.C_Str();
@@ -122,7 +133,7 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
     if(!std::filesystem::exists(texturePath))
     {
         DebugLayer::Log(DebugLayer::LogType::WARNING, "Path does not exist " + texturePath.string());
-        return UINT32_MAX;
+        return info;
     }
     else if(texturePath.extension() == ".dds") // handle compressed textures directly
     {
@@ -131,7 +142,7 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
         if(ret != tinyddsloader::Result::Success)
         {
             DebugLayer::Log(DebugLayer::LogType::WARNING, "Failed to load compressed texture " + texturePath.string());
-            return false;
+            return info;
         }
 
         auto mip0Data = file.GetImageData(0);
@@ -149,7 +160,7 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
         {
             // I don't think I will ever hit this but just in case
             DebugLayer::Log(DebugLayer::LogType::WARNING, "Texture has too many mip levels " + texturePath.string());
-            return false;
+            return info;
         }
 
         uint32_t textureIndex = exporter.Textures.size();
@@ -190,7 +201,10 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
             offset += mip.Size;
         }
 
-        return textureIndex;
+        info.Id = textureIndex;
+        info.Format = mip0.Format;
+
+        return info;
     }
     else
     {
@@ -212,7 +226,7 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
         {
             // I don't think I will ever hit this but just in case
             DebugLayer::Log(DebugLayer::LogType::WARNING, "Texture has too many mip levels " + texturePath.string());
-            return false;
+            return info;
         }
 
         uint32_t textureIndex = exporter.Textures.size();
@@ -303,7 +317,10 @@ uint32_t AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* m
             compressedOffset += compressedSize;
         }
 
-        return textureIndex;
+        info.Format = AssetExporter::TextureTypeToFormat(type);
+        info.Id = textureIndex;
+
+        return info;
     }
 }
 
@@ -355,15 +372,40 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
         ai_real roughness;
         material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
 
-        uint32_t baseColorID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
-        uint32_t normalMapID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
-        uint32_t mraoID = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
+        bool isTwoSided = false;
+        material->Get(AI_MATKEY_TWOSIDED, isTwoSided);
 
-        exporter.Materials[i] =
+        MaterialType materialType = AssetExporter::GetMaterialType(material);
+
+
+        if(isTwoSided)
         {
-            .BaseColorTexId = baseColorID,
-            .NormalMapTexId = normalMapID,
-            .MRAOTexId = mraoID,
+            if(materialType == MaterialType::Cutout)
+            {
+                materialType = MaterialType::CutoutTwoSided;
+            }
+            else
+            {
+                DebugLayer::Log(DebugLayer::LogType::WARNING, "Two sided material is not supported for material type: " + std::to_string(materialType));
+            }
+        }
+
+        auto baseColorInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
+        auto normalMapInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
+        auto mraoInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
+
+        if(baseColorInfo.Format == VK_FORMAT_BC3_UNORM_BLOCK || baseColorInfo.Format == VK_FORMAT_BC3_SRGB_BLOCK)
+        {
+            materialType = isTwoSided ? MaterialType::CutoutTwoSided : MaterialType::Cutout;
+        }
+
+        MaterialExport materialProperties =
+        {
+            .BaseColorTexId = baseColorInfo.Id,
+            .NormalMapTexId = normalMapInfo.Id,
+            .MRAOTexId = mraoInfo.Id,
+            .MaterialType = materialType,
+
             .BaseColor = glm::vec4(static_cast<float>(color.r),
                 static_cast<float>(color.g),
                 static_cast<float>(color.b),
@@ -371,6 +413,8 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             .Metallic = static_cast<float>(metallic),
             .Roughness = static_cast<float>(roughness)
         };
+
+        exporter.Materials[i] = materialProperties;
     }
 
     uint32_t meshCount = scene->mNumMeshes;
@@ -498,7 +542,7 @@ void AssetExporter::Write(const AssetExporter& exporter, const std::filesystem::
     fwrite(&exporter.Header, sizeof(AssetExporterHeader), 1, file);
 
     // DATAS
-    fwrite(exporter.Materials.data(), sizeof(MaterialProperties), exporter.Header.MaterialCount, file);
+    fwrite(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
     fwrite(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
     fwrite(exporter.SubMeshes.data(), sizeof(SubMeshExport), exporter.Header.SubMeshCount, file);
     fwrite(exporter.VertexDatas.data(), sizeof(Vertex), exporter.Header.VertexCount, file);
@@ -539,7 +583,7 @@ bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& s
 
     // DATAS
     exporter.Materials.resize(exporter.Header.MaterialCount);
-    fread(exporter.Materials.data(), sizeof(MaterialProperties), exporter.Header.MaterialCount, file);
+    fread(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
 
     exporter.Textures.resize(exporter.Header.TextureCount);
     fread(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
