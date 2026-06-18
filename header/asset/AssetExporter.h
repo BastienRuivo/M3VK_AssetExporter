@@ -14,8 +14,9 @@
 // V1 -> Added BaseColor, Metallic, Roughness textures ID
 // V2 -> Added AABB
 // V3 -> Adding multiple shader supports
+// V4 -> Adding Tangeants
 
-#define VERSION 3
+#define VERSION 4
 
 enum TextureType
 {

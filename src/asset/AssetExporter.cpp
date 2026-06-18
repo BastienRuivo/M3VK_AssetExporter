@@ -344,6 +344,7 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
         | aiProcess_PreTransformVertices // Collapses the node hierarchy into the verticess
         | aiProcess_GenNormals
         | aiProcess_GenBoundingBoxes
+        | aiProcess_CalcTangentSpace
     );
 
     if(scene == nullptr)
@@ -441,14 +442,14 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
         const aiMesh* mesh = scene->mMeshes[i];
 
         bool hasTexcoords = mesh->HasTextureCoords(0);
-        bool hasNormals = mesh->HasNormals();
 
         for(unsigned int j = 0; j < mesh->mNumVertices; j++)
         {
             exporter.VertexDatas[meshOffset + j] = Vertex
             {
                 .pos = glm::vec3(mesh->mVertices[j].x, mesh->mVertices[j].y, mesh->mVertices[j].z),
-                .normal = hasNormals ? glm::vec3(mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z) : glm::vec3(0, 1, 0),
+                .normal =  glm::vec3(mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z),
+                .tangeant = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z ),
                 .texCoord = hasTexcoords ? glm::vec2(mesh->mTextureCoords[0][j].x, mesh->mTextureCoords[0][j].y) : glm::vec2(0.0f)
             };
         }

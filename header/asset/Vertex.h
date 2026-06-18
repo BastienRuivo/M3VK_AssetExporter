@@ -17,6 +17,7 @@ struct Vertex
 {
     glm::vec3 pos;
     glm::vec3 normal;
+    glm::vec3 tangeant;
     glm::vec2 texCoord;
 
     bool operator==(const Vertex& other) const
@@ -58,6 +59,13 @@ struct Vertex
             {
                 .location = location++,
                 .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(Vertex, tangeant)
+            },
+            VkVertexInputAttributeDescription
+            {
+                .location = location++,
+                .binding = 0,
                 .format = VK_FORMAT_R32G32_SFLOAT,
                 .offset = offsetof(Vertex, texCoord)
             }
@@ -78,6 +86,7 @@ namespace std {
 
             HashCombine(seed, hash<glm::vec3>()(vertex.pos));
             HashCombine(seed, hash<glm::vec3>()(vertex.normal));
+            HashCombine(seed, hash<glm::vec3>()(vertex.tangeant));
             HashCombine(seed, hash<glm::vec2>()(vertex.texCoord));
 
             return seed;
