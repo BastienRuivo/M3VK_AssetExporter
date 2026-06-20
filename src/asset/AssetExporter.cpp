@@ -449,9 +449,15 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             {
                 .pos = glm::vec3(mesh->mVertices[j].x, mesh->mVertices[j].y, mesh->mVertices[j].z),
                 .normal =  glm::vec3(mesh->mNormals[j].x, mesh->mNormals[j].y, mesh->mNormals[j].z),
-                .tangeant = glm::vec3(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z ),
+                .tangent = glm::vec4(mesh->mTangents[j].x, mesh->mTangents[j].y, mesh->mTangents[j].z, 0.0f),
                 .texCoord = hasTexcoords ? glm::vec2(mesh->mTextureCoords[0][j].x, mesh->mTextureCoords[0][j].y) : glm::vec2(0.0f)
             };
+
+            glm::vec3 tangent = glm::vec3(mesh->mTangents[j].x, mesh->mTangents[j].y, mesh->mTangents[j].z);
+            glm::vec3 expectedBitangent = glm::cross(exporter.VertexDatas[meshOffset + j].normal, tangent);
+
+            float handedness = glm::dot(expectedBitangent, glm::vec3(mesh->mBitangents[j].x, mesh->mBitangents[j].y, mesh->mBitangents[j].z));
+            exporter.VertexDatas[meshOffset + j].tangent.w = handedness < 0.0f ? -1.0f : 1.0f;
         }
 
         for(unsigned int j = 0; j < mesh->mNumFaces; j++)
