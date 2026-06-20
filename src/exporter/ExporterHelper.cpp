@@ -322,7 +322,6 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
             curentWidth = std::max(1u, curentWidth / 2);
             currentHeight = std::max(1u, currentHeight / 2);
         }
-        mip0.Size = mip0.Width * mip0.Height * bytePerPixel;
         texturesExportInfo[textureIndex] = mip0;
 
         if(uncompressedDataCache.size() < size) uncompressedDataCache.resize(size);
