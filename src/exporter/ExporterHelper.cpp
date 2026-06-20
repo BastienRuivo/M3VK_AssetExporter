@@ -341,7 +341,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
 
         stagingBuffer.MapAndCopyToData(uncompressedDataCache.data(), size);
 
-        uint32_t compressedOffset = mip0.Offset;
+        uint32_t compressedOffset = mip0.Offset + offset;
         for(uint32_t i = 0; i < mip0.MipCount; i++)
         {
             auto & texture = texturesExportInfo[textureIndex + i];
