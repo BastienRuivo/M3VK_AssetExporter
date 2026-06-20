@@ -111,6 +111,13 @@ struct TextureLoadingInfo
     VkFormat Format;
 };
 
+struct Exporter
+{
+    uint32_t Version;
+
+
+};
+
 struct AssetExporter
 {
     uint32_t Version;
@@ -133,8 +140,8 @@ struct AssetExporter
 
     static MaterialType GetMaterialType(const aiMaterial* material);
     static AssetExporter Load3DModel(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue);
-    static TextureLoadingInfo LoadTexture(AssetExporter& exporter, const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue);
-    static void Write(const AssetExporter& exporter, const std::filesystem::path& destinationPath);
-    static bool Load(AssetExporter& exporter, const std::filesystem::path& sourcePath);
-    static void Clear(AssetExporter& exporter);
+    TextureLoadingInfo LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue);
+    void Write3DModel(const std::filesystem::path& destinationPath) const;
+    bool Load(AssetExporter& exporter, const std::filesystem::path& sourcePath);
+    void Clear();
 };

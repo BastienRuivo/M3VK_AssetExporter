@@ -105,7 +105,7 @@ MaterialType AssetExporter::GetMaterialType(const aiMaterial* material)
     return MaterialType::Opaque;
 }
 
-TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue)
+TextureLoadingInfo AssetExporter::LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue)
 {
     TextureLoadingInfo info
     {
@@ -148,7 +148,7 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
         auto mip0Data = file.GetImageData(0);
         TextureExport mip0
         {
-            .Offset = static_cast<uint32_t>(exporter.TextureDatas.size()),
+            .Offset = static_cast<uint32_t>(TextureDatas.size()),
             .Size = mip0Data->m_memSlicePitch,
             .Width = mip0Data->m_width,
             .Height = mip0Data->m_height,
@@ -163,8 +163,8 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
             return info;
         }
 
-        uint32_t textureIndex = exporter.Textures.size();
-        exporter.Textures.resize(textureIndex + mip0.MipCount);
+        uint32_t textureIndex = Textures.size();
+        Textures.resize(textureIndex + mip0.MipCount);
 
         VkDeviceSize totalSize = 0;
         for (uint32_t i = 0; i < mip0.MipCount; i++)
@@ -172,11 +172,11 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
             totalSize += file.GetImageData(i)->m_memSlicePitch;
         }
 
-        exporter.TextureDatas.resize(exporter.TextureDatas.size() + totalSize);
+        TextureDatas.resize(TextureDatas.size() + totalSize);
 
-        memcpy(exporter.TextureDatas.data() + mip0.Offset, mip0Data->m_mem, mip0.Size);
+        memcpy(TextureDatas.data() + mip0.Offset, mip0Data->m_mem, mip0.Size);
 
-        exporter.Textures[textureIndex] = mip0;
+        Textures[textureIndex] = mip0;
 
         uint32_t offset = mip0.Offset + mip0.Size;
 
@@ -195,9 +195,9 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
                 .MipCount = 0
             };
 
-            memcpy(exporter.TextureDatas.data() + offset, fileData->m_mem, mip.Size);
+            memcpy(TextureDatas.data() + offset, fileData->m_mem, mip.Size);
 
-            exporter.Textures[textureIndex + i] = mip;
+            Textures[textureIndex + i] = mip;
             offset += mip.Size;
         }
 
@@ -220,7 +220,7 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
             .MipCount = image.MipCount()
         };
 
-        size_t offset = exporter.TextureDatas.size();
+        size_t offset = TextureDatas.size();
 
         if(mip0.MipCount > 16)
         {
@@ -229,8 +229,8 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
             return info;
         }
 
-        uint32_t textureIndex = exporter.Textures.size();
-        exporter.Textures.resize(exporter.Textures.size() + mip0.MipCount);
+        uint32_t textureIndex = Textures.size();
+        Textures.resize(Textures.size() + mip0.MipCount);
 
         VkBufferImageCopy region[16];
         uint32_t curentWidth = mip0.Width;
@@ -269,7 +269,7 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
 
             if(i > 0)
             {
-                exporter.Textures[textureIndex + i] =
+                Textures[textureIndex + i] =
                 {
                     .Offset = size,
                     .Size = curentWidth * currentHeight * bytePerPixel,
@@ -285,9 +285,9 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
             currentHeight = std::max(1u, currentHeight / 2);
         }
         mip0.Size = mip0.Width * mip0.Height * bytePerPixel;
-        exporter.Textures[textureIndex] = mip0;
+        Textures[textureIndex] = mip0;
 
-        if(exporter.UncompressedDataCache.size() < size) exporter.UncompressedDataCache.resize(size);
+        if(UncompressedDataCache.size() < size) UncompressedDataCache.resize(size);
 
         StageBuffer stagingBuffer(size, StageBuffer::Usage::Readback);
 
@@ -301,14 +301,14 @@ TextureLoadingInfo AssetExporter::LoadTexture(AssetExporter& exporter, const aiM
         cmdBuffer.End();
         cmdBuffer.WaitCompletion();
 
-        stagingBuffer.MapAndCopyToData(exporter.UncompressedDataCache.data(), size);
+        stagingBuffer.MapAndCopyToData(UncompressedDataCache.data(), size);
 
         uint32_t compressedOffset = mip0.Offset;
         for(uint32_t i = 0; i < mip0.MipCount; i++)
         {
-            auto & texture = exporter.Textures[textureIndex + i];
-            std::byte* uncompressedTextureData = exporter.UncompressedDataCache.data() + texture.Offset;
-            uint32_t compressedSize = BC7Compress(uncompressedTextureData, texture.Size, exporter.TextureDatas, texture.Width, texture.Height, 1, ImageHelper::GetBytePerPixel(texture.Format));
+            auto & texture = Textures[textureIndex + i];
+            std::byte* uncompressedTextureData = UncompressedDataCache.data() + texture.Offset;
+            uint32_t compressedSize = BC7Compress(uncompressedTextureData, texture.Size, TextureDatas, texture.Width, texture.Height, 1, ImageHelper::GetBytePerPixel(texture.Format));
 
             texture.Format = AssetExporter::TextureTypeToFormat(type);
             texture.Offset = compressedOffset;
@@ -330,7 +330,7 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
 
     AssetExporter exporter;
     DebugLayer::Log(DebugLayer::LogType::INFO, "Loading model: " + modelPath.string());
-    AssetExporter::Clear(exporter);
+    exporter.Clear();
 
     Assimp::Importer importer;
 
@@ -391,9 +391,9 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             }
         }
 
-        auto baseColorInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
-        auto normalMapInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
-        auto mraoInfo = AssetExporter::LoadTexture(exporter, material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
+        auto baseColorInfo = exporter.LoadTexture(material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue);
+        auto normalMapInfo = exporter.LoadTexture(material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue);
+        auto mraoInfo = exporter.LoadTexture(material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue);
 
         if(baseColorInfo.Format == VK_FORMAT_BC3_UNORM_BLOCK || baseColorInfo.Format == VK_FORMAT_BC3_SRGB_BLOCK)
         {
@@ -527,7 +527,7 @@ AssetExporter& AssetExporter::operator=(AssetExporter&& other) noexcept
     return *this;
 }
 
-void AssetExporter::Write(const AssetExporter& exporter, const std::filesystem::path& destinationPath)
+void AssetExporter::Write3DModel(const std::filesystem::path& destinationPath) const
 {
     remove(destinationPath.string().c_str());
 
@@ -545,27 +545,18 @@ void AssetExporter::Write(const AssetExporter& exporter, const std::filesystem::
         return;
     }
 
-    fwrite(&exporter.Version, sizeof(uint32_t), 1, file);
-    fwrite(&exporter.Header, sizeof(AssetExporterHeader), 1, file);
+    fwrite(&Version, sizeof(uint32_t), 1, file);
+    fwrite(&Header, sizeof(AssetExporterHeader), 1, file);
 
     // DATAS
-    fwrite(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
-    fwrite(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
-    fwrite(exporter.SubMeshes.data(), sizeof(SubMeshExport), exporter.Header.SubMeshCount, file);
-    fwrite(exporter.VertexDatas.data(), sizeof(Vertex), exporter.Header.VertexCount, file);
-    fwrite(exporter.IndexDatas.data(), sizeof(uint32_t), exporter.Header.IndexCount, file);
-    fwrite(exporter.TextureDatas.data(), sizeof(std::byte), exporter.Header.TextureDataCount, file);
+    fwrite(Materials.data(), sizeof(MaterialExport), Header.MaterialCount, file);
+    fwrite(Textures.data(), sizeof(TextureExport), Header.TextureCount, file);
+    fwrite(SubMeshes.data(), sizeof(SubMeshExport), Header.SubMeshCount, file);
+    fwrite(VertexDatas.data(), sizeof(Vertex), Header.VertexCount, file);
+    fwrite(IndexDatas.data(), sizeof(uint32_t), Header.IndexCount, file);
+    fwrite(TextureDatas.data(), sizeof(std::byte), Header.TextureDataCount, file);
 
     fclose(file);
-
-    // write all textures into bitmap file for debug purpose
-    // for(uint32_t i = 0; i < exporter.Header.TextureCount; i++)
-    // {
-    //     auto & texture = exporter.Textures[i];
-    //     std::filesystem::path texturePath = destinationPath.parent_path() / (std::to_string(i) + ".bmp");
-
-    //     stbi_write_bmp(texturePath.c_str(), texture.Width, texture.Height, 4, exporter.TextureDatas.data() + texture.Offset);
-    // }
 }
 
 bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& sourcePath)
@@ -612,12 +603,12 @@ bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& s
     return true;
 }
 
-void AssetExporter::Clear(AssetExporter& exporter)
+void AssetExporter::Clear()
 {
-    exporter.Materials.clear();
-    exporter.Textures.clear();
-    exporter.SubMeshes.clear();
-    exporter.VertexDatas.clear();
-    exporter.IndexDatas.clear();
-    exporter.TextureDatas.clear();
+    Materials.clear();
+    Textures.clear();
+    SubMeshes.clear();
+    VertexDatas.clear();
+    IndexDatas.clear();
+    TextureDatas.clear();
 }

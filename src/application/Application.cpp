@@ -34,22 +34,29 @@ Application::~Application()
 {
 }
 
-void RecursiveModelSearch(std::filesystem::path path, std::vector<std::filesystem::path>& toExport)
+void RecursiveModelSearch(std::filesystem::path path, std::vector<std::filesystem::path>& toExport, const std::vector<std::string>& extensions)
 {
     if(std::filesystem::is_directory(path))
     {
         for(const auto& entry : std::filesystem::directory_iterator(path))
         {
-            RecursiveModelSearch(entry.path(), toExport);
+            RecursiveModelSearch(entry.path(), toExport, extensions);
         }
     }
-    else if(std::filesystem::is_regular_file(path) && path.extension() == ".fbx" || path.extension() == ".obj" || path.extension() == ".gltf")
+    else if(std::filesystem::is_regular_file(path))
     {
-        toExport.push_back(path);
+        for(const auto& extension : extensions)
+        {
+            if(path.extension() == extension)
+            {
+                toExport.push_back(path);
+                return;
+            }
+        }
     }
 }
 
-void Application::Export(std::filesystem::path sourcePath, std::filesystem::path targetPath)
+void Application::ExportAsset(std::filesystem::path sourcePath, std::filesystem::path targetPath)
 {
     bool sourceIsDir = std::filesystem::is_directory(sourcePath);
     bool targetIsDir = std::filesystem::is_directory(targetPath);
@@ -57,7 +64,7 @@ void Application::Export(std::filesystem::path sourcePath, std::filesystem::path
     if(!sourceIsDir && !targetIsDir)
     {
         AssetExporter exporter = AssetExporter::Load3DModel(sourcePath, _uploadCommandPool.Internal(), _uploadQueue.Internal());
-        AssetExporter::Write(exporter, targetPath);
+        exporter.Write3DModel(targetPath);
         return;
     }
     else if(targetIsDir ^ sourceIsDir)
@@ -67,13 +74,13 @@ void Application::Export(std::filesystem::path sourcePath, std::filesystem::path
     }
 
     std::vector<std::filesystem::path> toExport;
-    RecursiveModelSearch(sourcePath, toExport);
+    RecursiveModelSearch(sourcePath, toExport, std::vector<std::string>({".obj", ".fbx", ".gltf"}));
 
     for(const auto& path : toExport)
     {
         AssetExporter exporter = AssetExporter::Load3DModel(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
         std:std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkasset");
-        AssetExporter::Write(exporter, target);
+        exporter.Write3DModel(target);
     }
 
 }
