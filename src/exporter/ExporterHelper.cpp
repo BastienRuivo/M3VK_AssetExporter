@@ -113,14 +113,6 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
     uint32_t blockXCount = (width + 3) / 4;
     uint32_t blockYCount = (height + 3) / 4;
 
-    rgba_surface surface
-    {
-        .ptr = static_cast<uint8_t *>(data),
-        .width = static_cast<int32_t>(width),
-        .height = static_cast<int32_t>(height),
-        .stride = static_cast<int32_t>(width * 4)
-    };
-
     uint32_t offset = static_cast<uint32_t>(textureDatas.size());
 
     uint32_t compressedSize = blockXCount * blockYCount * 16;
@@ -132,13 +124,48 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
 
     uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
 
+    std::vector<uint8_t> dummy(width * height * 4, 0);
+
+    rgba_surface surface
+    {
+        .ptr = dummy.data(),
+        .width = static_cast<int32_t>(width),
+        .height = static_cast<int32_t>(height),
+        .stride = static_cast<int32_t>(width * 4)
+    };
+
     if(type == NormalMap)
     {
+        for (uint32_t i = 0; i < width * height; ++i)
+        {
+            uint32_t idx = i * 4;
+            
+            uint8_t r = surface.ptr[idx + 0]; // X Component
+            uint8_t g = surface.ptr[idx + 1]; // Y Component
+            uint8_t b = surface.ptr[idx + 2]; // Z Component
+            
+            // NOTE: If your image.Internal().Format is VK_FORMAT_B8G8R8A8_UNORM, 
+            // uncomment the lines below to fix the Vulkan BGRA->RGBA channel inversion:
+            // uint8_t temp = r;
+            // r = b;
+            // b = temp;
+
+            surface.ptr[idx + 0] = 255; // Channel 1 (BC5 Red) -> X
+            surface.ptr[idx + 1] = 0; // Channel 2 (BC5 Green fallback) -> Y
+            surface.ptr[idx + 2] = 0; // Unused by BC5
+            surface.ptr[idx + 3] = 0; // CRITICAL: Duplicate Y component into Alpha for ISPC BC5
+            
+        }
         CompressBlocksBC5(&surface, blockData);
+
+        uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
+        uint64_t firstHalf = blockPtr[0];
+        uint64_t secondHalf = blockPtr[1];
+
+        DebugLayer::Log(DebugLayer::LogType::INFO, "Block 0: " + std::to_string(firstHalf) + " | " + std::to_string(secondHalf));
     }
     else
     {
-
         bc7_enc_settings settings;
         GetProfile_ultrafast(&settings);
         CompressBlocksBC7(&surface, blockData, &settings);
@@ -233,7 +260,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
             TextureExport mip
             {
                 .Type = type,
-                .Offset = mip0.Offset + offset,
+                .Offset = offset,
                 .Size = fileData->m_memSlicePitch,
                 .Width = fileData->m_width,
                 .Height = fileData->m_height,
@@ -258,6 +285,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
 
         TextureExport mip0
         {
+            .Type = type,
             .Offset = 0,
             .Size = 0,
             .Width = (uint32_t)image.Width(),
@@ -348,7 +376,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
 
         stagingBuffer.MapAndCopyToData(uncompressedDataCache.data(), size);
 
-        uint32_t compressedOffset = mip0.Offset + offset;
+        uint32_t compressedOffset = offset;
         for(uint32_t i = 0; i < mip0.MipCount; i++)
         {
             auto & texture = texturesExportInfo[textureIndex + i];
