@@ -100,7 +100,7 @@ VkFormat ExporterHelper::TextureTypeToFormat(TextureType type)
     case TextureType::BaseColor:
         return VK_FORMAT_BC7_SRGB_BLOCK;
     case TextureType::NormalMap:
-        return VK_FORMAT_BC7_UNORM_BLOCK;
+        return VK_FORMAT_BC5_UNORM_BLOCK;
     case TextureType::MRAO:
         return VK_FORMAT_BC7_UNORM_BLOCK;
     default:
@@ -108,20 +108,17 @@ VkFormat ExporterHelper::TextureTypeToFormat(TextureType type)
     };
 }
 
-uint32_t ExporterHelper::BC7Compress(void* data, uint32_t size, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height, uint32_t depth, uint32_t channels)
+uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height)
 {
     uint32_t blockXCount = (width + 3) / 4;
     uint32_t blockYCount = (height + 3) / 4;
-
-    bc7_enc_settings settings;
-    GetProfile_ultrafast(&settings);
 
     rgba_surface surface
     {
         .ptr = static_cast<uint8_t *>(data),
         .width = static_cast<int32_t>(width),
         .height = static_cast<int32_t>(height),
-        .stride = static_cast<int32_t>(width * channels)
+        .stride = static_cast<int32_t>(width * 4)
     };
 
     uint32_t offset = static_cast<uint32_t>(textureDatas.size());
@@ -129,12 +126,23 @@ uint32_t ExporterHelper::BC7Compress(void* data, uint32_t size, std::vector<std:
     uint32_t compressedSize = blockXCount * blockYCount * 16;
     textureDatas.resize(textureDatas.size() + compressedSize);
 
-    int gain = (1.0f - (compressedSize / static_cast<float>(width * height * channels))) * 100;
+    int gain = (1.0f - (compressedSize / static_cast<float>(width * height * 4))) * 100;
 
-    DebugLayer::Log(DebugLayer::LogType::INFO, "Compressing texture " + std::to_string(width) + "x" + std::to_string(height) + "x" + std::to_string(depth) + " with " + std::to_string(channels) + " channels with a gain of " + std::to_string(gain) + "%");
+    DebugLayer::Log(DebugLayer::LogType::INFO, "Compressing texture " + std::to_string(width) + "x" + std::to_string(height) + " with a gain of " + std::to_string(gain) + "%");
 
     uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
-    CompressBlocksBC7(&surface, blockData, &settings);
+
+    if(type == NormalMap)
+    {
+        CompressBlocksBC5(&surface, blockData);
+    }
+    else
+    {
+
+        bc7_enc_settings settings;
+        GetProfile_ultrafast(&settings);
+        CompressBlocksBC7(&surface, blockData, &settings);
+    }
     return compressedSize;
 }
 
@@ -345,7 +353,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
         {
             auto & texture = texturesExportInfo[textureIndex + i];
             std::byte* uncompressedTextureData = uncompressedDataCache.data() + texture.Offset;
-            uint32_t compressedSize = ExporterHelper::BC7Compress(uncompressedTextureData, texture.Size, textureDatas, texture.Width, texture.Height, 1, ImageHelper::GetBytePerPixel(texture.Format));
+            uint32_t compressedSize = ExporterHelper::BCCompress(type, uncompressedTextureData, textureDatas, texture.Width, texture.Height);
 
             texture.Format = ExporterHelper::TextureTypeToFormat(type);
             texture.Offset = compressedOffset;
