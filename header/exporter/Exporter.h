@@ -1,22 +1,11 @@
 #pragma once
 
-#include "exporter/Vertex.h"
-#include "assimp/material.h"
 #include "glm/fwd.hpp"
-#include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <span>
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
-// V0 -> Initial Version
-// V1 -> Added BaseColor, Metallic, Roughness textures ID
-// V2 -> Added AABB
-// V3 -> Adding multiple shader supports
-// V4 -> Adding Tangeants
-
-#define VERSION 4
+#include <glm/glm.hpp>
 
 enum TextureType
 {
@@ -118,34 +107,4 @@ struct Exporter
     virtual void Write(const std::filesystem::path& destinationPath) const = 0;
     virtual bool Load(const std::filesystem::path& sourcePath) = 0;
     virtual void Clear() = 0;
-};
-
-struct AssetExporter : public Exporter
-{
-    uint32_t Version;
-    AssetExporterHeader Header;
-
-    std::vector<MaterialExport> Materials;
-    std::vector<TextureExport> Textures;
-    std::vector<SubMeshExport> SubMeshes;
-    std::vector<std::byte> TextureDatas;
-    std::vector<Vertex> VertexDatas;
-    std::vector<uint32_t> IndexDatas;
-
-    std::vector<std::byte> UncompressedDataCache;
-
-    AssetExporter() = default;
-    AssetExporter(AssetExporter&& other) noexcept;
-    AssetExporter& operator=(AssetExporter&& other) noexcept;
-
-    static VkFormat TextureTypeToFormat(TextureType type);
-
-    static MaterialType GetMaterialType(const aiMaterial* material);
-    static AssetExporter Load3DModel(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue);
-    TextureLoadingInfo LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue);
-
-    void Write(const std::filesystem::path& destinationPath) const override;
-    bool Load(const std::filesystem::path& sourcePath) override;
-    void Clear() override;
-    
 };

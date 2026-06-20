@@ -1,6 +1,6 @@
 #include "application/Application.h"
 #include "application/DebugLayer.h"
-#include "exporter/Exporter.h"
+#include "exporter/AssetExporter.h"
 #include <filesystem>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
