@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
         for(int i = 1; i < argc; i+=2)
         {
             DebugLayer::Log(DebugLayer::LogType::INFO, "Loading from: " + std::string(argv[i]) + " to: " + std::string(argv[i + 1]));
-            application.Export(argv[i], argv[i + 1]);
+            application.ExportAsset(argv[i], argv[i + 1]);
         }
     }
     catch (const std::exception& e)

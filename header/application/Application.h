@@ -20,7 +20,7 @@ class Application
 {
 
     public:
-    void Export(std::filesystem::path sourcePath, std::filesystem::path targetPath);
+    void ExportAsset(std::filesystem::path sourcePath, std::filesystem::path targetPath);
 
     Application();
     ~Application();
