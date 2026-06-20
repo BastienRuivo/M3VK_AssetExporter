@@ -1,6 +1,6 @@
 #pragma once
 
-#include "asset/Vertex.h"
+#include "exporter/Vertex.h"
 #include "assimp/material.h"
 #include "glm/fwd.hpp"
 #include <cstddef>
@@ -115,10 +115,12 @@ struct Exporter
 {
     uint32_t Version;
 
-
+    virtual void Write(const std::filesystem::path& destinationPath) const = 0;
+    virtual bool Load(const std::filesystem::path& sourcePath) = 0;
+    virtual void Clear() = 0;
 };
 
-struct AssetExporter
+struct AssetExporter : public Exporter
 {
     uint32_t Version;
     AssetExporterHeader Header;
@@ -141,7 +143,9 @@ struct AssetExporter
     static MaterialType GetMaterialType(const aiMaterial* material);
     static AssetExporter Load3DModel(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue);
     TextureLoadingInfo LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue);
-    void Write3DModel(const std::filesystem::path& destinationPath) const;
-    bool Load(AssetExporter& exporter, const std::filesystem::path& sourcePath);
-    void Clear();
+
+    void Write(const std::filesystem::path& destinationPath) const override;
+    bool Load(const std::filesystem::path& sourcePath) override;
+    void Clear() override;
+    
 };

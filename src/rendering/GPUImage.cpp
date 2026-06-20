@@ -1,7 +1,7 @@
 #include "rendering/GPUImage.h"
 #include "rendering/ImageHelper.h"
 #include "application/ApplicationInfo.h"
-#include "asset/CPUImage.h"
+#include "exporter/CPUImage.h"
 #include "rendering/CommandBuffer.h"
 #include "rendering/GraphicsBuffer.h"
 #include "handler/VkImageViewHandler.h"

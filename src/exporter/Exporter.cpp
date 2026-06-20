@@ -2,10 +2,10 @@
 
 #include <cstdio>
 
-#include "asset/AssetExporter.h"
+#include "exporter/Exporter.h"
 #include "application/DebugLayer.h"
-#include "asset/AssetHelper.h"
-#include "asset/CPUImage.h"
+#include "exporter/ExporterHelper.h"
+#include "exporter/CPUImage.h"
 #include "assimp/Importer.hpp"
 #include "assimp/defs.h"
 #include "assimp/material.h"
@@ -113,7 +113,7 @@ TextureLoadingInfo AssetExporter::LoadTexture(const aiMaterial* material, const 
         .Format = VK_FORMAT_UNDEFINED
     };
     uint32_t textureCount = 0;
-    aiTextureType textureType = AssetHelper::SelectTextureType(types, material, textureCount);
+    aiTextureType textureType = ExporterHelper::SelectTextureType(types, material, textureCount);
     if(textureCount == 0) return info;
 
     aiString path;
@@ -527,7 +527,7 @@ AssetExporter& AssetExporter::operator=(AssetExporter&& other) noexcept
     return *this;
 }
 
-void AssetExporter::Write3DModel(const std::filesystem::path& destinationPath) const
+void AssetExporter::Write(const std::filesystem::path& destinationPath) const
 {
     remove(destinationPath.string().c_str());
 
@@ -559,7 +559,7 @@ void AssetExporter::Write3DModel(const std::filesystem::path& destinationPath) c
     fclose(file);
 }
 
-bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& sourcePath)
+bool AssetExporter::Load(const std::filesystem::path& sourcePath)
 {
     auto file = fopen(sourcePath.string().c_str(), "rb");
 
@@ -569,34 +569,34 @@ bool AssetExporter::Load(AssetExporter& exporter, const std::filesystem::path& s
         return false;
     }
 
-    fread(&exporter.Version, sizeof(uint32_t), 1, file);
+    fread(&Version, sizeof(uint32_t), 1, file);
 
-    if(exporter.Version < VERSION)
+    if(Version < VERSION)
     {
-        DebugLayer::Log(DebugLayer::LogType::WARNING, "File '" + sourcePath.string() + "' version is too old : " + std::to_string(exporter.Version) + " < " + std::to_string(VERSION));
+        DebugLayer::Log(DebugLayer::LogType::WARNING, "File '" + sourcePath.string() + "' version is too old : " + std::to_string(Version) + " < " + std::to_string(VERSION));
         return false;
     }
 
-    fread(&exporter.Header, sizeof(AssetExporterHeader), 1, file);
+    fread(&Header, sizeof(AssetExporterHeader), 1, file);
 
     // DATAS
-    exporter.Materials.resize(exporter.Header.MaterialCount);
-    fread(exporter.Materials.data(), sizeof(MaterialExport), exporter.Header.MaterialCount, file);
+    Materials.resize(Header.MaterialCount);
+    fread(Materials.data(), sizeof(MaterialExport), Header.MaterialCount, file);
 
-    exporter.Textures.resize(exporter.Header.TextureCount);
-    fread(exporter.Textures.data(), sizeof(TextureExport), exporter.Header.TextureCount, file);
+    Textures.resize(Header.TextureCount);
+    fread(Textures.data(), sizeof(TextureExport), Header.TextureCount, file);
 
-    exporter.SubMeshes.resize(exporter.Header.SubMeshCount);
-    fread(exporter.SubMeshes.data(), sizeof(SubMeshExport), exporter.Header.SubMeshCount, file);
+    SubMeshes.resize(Header.SubMeshCount);
+    fread(SubMeshes.data(), sizeof(SubMeshExport), Header.SubMeshCount, file);
 
-    exporter.VertexDatas.resize(exporter.Header.VertexCount);
-    fread(exporter.VertexDatas.data(), sizeof(Vertex), exporter.Header.VertexCount, file);
+    VertexDatas.resize(Header.VertexCount);
+    fread(VertexDatas.data(), sizeof(Vertex), Header.VertexCount, file);
 
-    exporter.IndexDatas.resize(exporter.Header.IndexCount);
-    fread(exporter.IndexDatas.data(), sizeof(uint32_t), exporter.Header.IndexCount, file);
+    IndexDatas.resize(Header.IndexCount);
+    fread(IndexDatas.data(), sizeof(uint32_t), Header.IndexCount, file);
 
-    exporter.TextureDatas.resize(exporter.Header.TextureDataCount);
-    fread(exporter.TextureDatas.data(), sizeof(std::byte), exporter.Header.TextureDataCount, file);
+    TextureDatas.resize(Header.TextureDataCount);
+    fread(TextureDatas.data(), sizeof(std::byte), Header.TextureDataCount, file);
 
     fclose(file);
 

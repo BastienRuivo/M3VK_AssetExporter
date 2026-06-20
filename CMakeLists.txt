@@ -37,6 +37,12 @@ fetchcontent_declare(
     GIT_TAG        1.0.3
 )
 
+fetchcontent_declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.12.0 # Use the specific version tag you require
+)
+
 set(ASSIMP_BUILD_ZLIB ON CACHE INTERNAL "")
 set(ASSIMP_FORCE_INTERNAL_ZLIB ON CACHE INTERNAL "")
 set(ASSIMP_BUILD_MINIZIP ON CACHE INTERNAL "")
@@ -65,7 +71,7 @@ fetchcontent_declare(
     GIT_TAG        master
 )
 
-fetchcontent_makeavailable(stb glm assimp ispc_texcomp_repo)
+fetchcontent_makeavailable(stb glm assimp ispc_texcomp_repo json)
 
 # --- Interface Library Setup ---
 
@@ -115,4 +121,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glm::glm
     assimp::assimp
     ispc_texture_compressor
+    nlohmann_json::nlohmann_json
 )

@@ -1,4 +1,4 @@
-#include "asset/CPUImage.h"
+#include "exporter/CPUImage.h"
 #include "application/DebugLayer.h"
 #include <filesystem>
 #include <stdexcept>

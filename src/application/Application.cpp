@@ -1,6 +1,6 @@
 #include "application/Application.h"
 #include "application/DebugLayer.h"
-#include "asset/AssetExporter.h"
+#include "exporter/Exporter.h"
 #include <filesystem>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -64,7 +64,7 @@ void Application::ExportAsset(std::filesystem::path sourcePath, std::filesystem:
     if(!sourceIsDir && !targetIsDir)
     {
         AssetExporter exporter = AssetExporter::Load3DModel(sourcePath, _uploadCommandPool.Internal(), _uploadQueue.Internal());
-        exporter.Write3DModel(targetPath);
+        exporter.Write(targetPath);
         return;
     }
     else if(targetIsDir ^ sourceIsDir)
@@ -80,7 +80,7 @@ void Application::ExportAsset(std::filesystem::path sourcePath, std::filesystem:
     {
         AssetExporter exporter = AssetExporter::Load3DModel(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
         std:std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkasset");
-        exporter.Write3DModel(target);
+        exporter.Write(target);
     }
 
 }

@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <span>
 
-namespace AssetHelper
+namespace ExporterHelper
 {
     aiTextureType SelectTextureType(std::span<const aiTextureType> types, const aiMaterial* material, uint32_t& textureCount);
     void DebugListMaterialTextures(aiMaterial* material);

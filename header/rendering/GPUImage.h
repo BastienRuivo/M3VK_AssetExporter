@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <stb_image.h>
-#include "asset/CPUImage.h"
+#include "exporter/CPUImage.h"
 #include "libs/tinyddsloader.h"
 #include "rendering/CommandBuffer.h"
 #include "handler/VkImageViewHandler.h"

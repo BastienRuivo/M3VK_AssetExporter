@@ -20,14 +20,15 @@ int main(int argc, char* argv[])
         std::cout << "Assert export -- " << std::endl;
         std::cout << " -h --help : Display this help" << std::endl;
         std::cout << "-a --asset <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export assets" << std::endl;
-        /*std::cout << "-m --material <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export materials" << std::endl;
-        std::cout << "-t --texture <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export textures" << std::endl;
+        std::cout << "-m --material <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export materials" << std::endl;
+        /*std::cout << "-t --texture <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export textures" << std::endl;
         std::cout << "-c --cubemap <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ... Export cubemaps" << std::endl;*/
         return EXIT_SUCCESS;
     }
 
     if(argc % 2 != 0)
     {
+        std::cerr << "Argument count " << argc << std::endl;
         std::cerr << "Format is -{TYPE} <IMPORT_PATH0> <EXPORT_PATH0> <IMPORT_PATH1> <EXPORT_PATH1> ..." << std::endl;
         return EXIT_FAILURE;
     }

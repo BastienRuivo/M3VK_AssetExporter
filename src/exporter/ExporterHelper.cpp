@@ -1,4 +1,4 @@
-#include "asset/AssetHelper.h"
+#include "exporter/ExporterHelper.h"
 #include "application/DebugLayer.h"
 #include "assimp/material.h"
 #include <cstdint>
@@ -10,7 +10,7 @@
 
 #include "assimp/types.h"
 
-aiTextureType AssetHelper::SelectTextureType(std::span<const aiTextureType> types, const aiMaterial* material, uint32_t& textureCount)
+aiTextureType ExporterHelper::SelectTextureType(std::span<const aiTextureType> types, const aiMaterial* material, uint32_t& textureCount)
 {
     for(const auto& type : types)
     {
@@ -24,7 +24,7 @@ aiTextureType AssetHelper::SelectTextureType(std::span<const aiTextureType> type
     return aiTextureType::aiTextureType_NONE;
 }
 
-std::filesystem::path AssetHelper::GetTexturePath(const std::filesystem::path& modelPath)
+std::filesystem::path ExporterHelper::GetTexturePath(const std::filesystem::path& modelPath)
 {
     int pathIndex = 0;
     const int modelRoot = 1;
@@ -43,7 +43,7 @@ std::filesystem::path AssetHelper::GetTexturePath(const std::filesystem::path& m
     return texturePath / "textures";
 }
 
-void AssetHelper::DebugListMaterialTextures(aiMaterial* material) {
+void ExporterHelper::DebugListMaterialTextures(aiMaterial* material) {
     // Iterate through all possible Assimp texture types
     for (unsigned int type = aiTextureType_NONE; type < AI_TEXTURE_TYPE_MAX; ++type)
     {
