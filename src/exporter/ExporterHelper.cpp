@@ -1,6 +1,7 @@
 #include "exporter/ExporterHelper.h"
 #include "application/DebugLayer.h"
 #include "assimp/material.h"
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <span>
@@ -10,6 +11,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "assimp/types.h"
+#include "exporter/CPUImage.h"
 #include "exporter/Exporter.h"
 #include "libs/tinyddsloader.h"
 #include "rendering/ImageHelper.h"
@@ -109,7 +111,65 @@ VkFormat ExporterHelper::TextureTypeToFormat(TextureType type)
     };
 }
 
-uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height)
+uint32_t BC7Compress(void* data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height)
+{
+    uint32_t blockXCount = (width + 3) / 4;
+    uint32_t blockYCount = (height + 3) / 4;
+
+    uint32_t offset = static_cast<uint32_t>(textureDatas.size());
+    uint32_t compressedSize = blockXCount * blockYCount * 16;
+    textureDatas.resize(textureDatas.size() + compressedSize);
+
+    uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
+
+    uint32_t padBuffer[16] = {0};
+    uint8_t* sourceData = reinterpret_cast<uint8_t*>(data);
+    int32_t stride = width * 4;
+
+    if(width < 4 || height < 4)
+    {
+        uint32_t* source = reinterpret_cast<uint32_t*>(sourceData);
+        for(uint32_t y = 0; y < 4; y++)
+        {
+            uint32_t clampedY = std::min(y, height - 1);
+            for(uint32_t x = 0; x < 4; x++)
+            {
+                uint32_t clampedX = std::min(x, width - 1);
+                padBuffer[y * 4 + x] = source[clampedY * width + clampedX];
+            }
+        }
+
+        width = 4;
+        height = 4;
+        sourceData = reinterpret_cast<uint8_t*>(padBuffer);
+        stride = 16;
+    }
+
+    rgba_surface surface
+    {
+        .ptr = reinterpret_cast<uint8_t*>(sourceData),
+        .width = static_cast<int32_t>(width),
+        .height = static_cast<int32_t>(height),
+        .stride = stride
+    };
+
+    bc7_enc_settings settings;
+    GetProfile_ultrafast(&settings);
+    CompressBlocksBC7(&surface, blockData, &settings);
+
+    uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
+    uint64_t firstHalf = blockPtr[0];
+    uint64_t secondHalf = blockPtr[1];
+
+    int gain = (1.0f - (compressedSize / static_cast<float>(width * height * 4))) * 100;
+    DebugLayer::Log(DebugLayer::LogType::INFO, "Compressing texture " + std::to_string(width) + "x" + std::to_string(height) + " with a gain of " + std::to_string(gain) + "%");
+    DebugLayer::Log(DebugLayer::LogType::INFO, "Block count X : " +  std::to_string(blockXCount) + " | Y : " + std::to_string(blockYCount) + " Size " + std::to_string(compressedSize) + " Block 0: " + std::to_string(firstHalf) + " | " + std::to_string(secondHalf));
+    return compressedSize;
+}
+
+
+
+uint32_t BC5Compress(void* data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height)
 {
     uint32_t blockXCount = (width + 3) / 4;
     uint32_t blockYCount = (height + 3) / 4;
@@ -119,30 +179,29 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
     uint32_t compressedSize = blockXCount * blockYCount * 16;
     textureDatas.resize(textureDatas.size() + compressedSize);
 
-    int gain = (1.0f - (compressedSize / static_cast<float>(width * height * 4))) * 100;
-
-    DebugLayer::Log(DebugLayer::LogType::INFO, "Compressing texture " + std::to_string(width) + "x" + std::to_string(height) + " with a gain of " + std::to_string(gain) + "%");
-
     uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
 
     uint32_t padBuffer[16] = {0};
     uint8_t* sourceData = reinterpret_cast<uint8_t*>(data);
+    int32_t stride = width * 2;
 
     if(width < 4 || height < 4)
     {
         uint32_t* source = reinterpret_cast<uint32_t*>(sourceData);
-        memset(padBuffer, 0, sizeof(uint32_t) * 16);
-        for(uint32_t i = 0; i < 4; i++)
+        for(uint32_t y = 0; y < 4; y++)
         {
-            for(uint32_t j = 0; j < 4; j++)
+            uint32_t clampedY = std::min(y, height - 1);
+            for(uint32_t x = 0; x < 4; x++)
             {
-                padBuffer[i * 4 + j] = source[std::min(i, height - 1) * width + std::min(j, width - 1)];
+                uint32_t clampedX = std::min(x, width - 1);
+                padBuffer[y * 4 + x] = source[clampedY * width + clampedX];
             }
         }
 
         width = 4;
         height = 4;
         sourceData = reinterpret_cast<uint8_t*>(padBuffer);
+        stride = 16;
     }
 
     rgba_surface surface
@@ -150,25 +209,30 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
         .ptr = reinterpret_cast<uint8_t*>(sourceData),
         .width = static_cast<int32_t>(width),
         .height = static_cast<int32_t>(height),
-        .stride = static_cast<int32_t>(width * 4)
+        .stride = stride
     };
 
-    if(type == NormalMap)
-    {
-        CompressBlocksBC5(&surface, blockData);
-    }
-    else
-    {
-        bc7_enc_settings settings;
-        GetProfile_ultrafast(&settings);
-        CompressBlocksBC7(&surface, blockData, &settings);
-    }
+    CompressBlocksBC5(&surface, blockData);
     uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
     uint64_t firstHalf = blockPtr[0];
     uint64_t secondHalf = blockPtr[1];
 
     DebugLayer::Log(DebugLayer::LogType::INFO, "Block count X : " +  std::to_string(blockXCount) + " | Y : " + std::to_string(blockYCount) + " Size " + std::to_string(compressedSize) + " Block 0: " + std::to_string(firstHalf) + " | " + std::to_string(secondHalf));
     return compressedSize;
+}
+
+uint32_t ExporterHelper::BCCompress(TextureType type, void *data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height)
+{
+    switch(type)
+    {
+        case TextureType::MRAO:
+        case TextureType::BaseColor:
+            return BC7Compress(data, textureDatas, width, height);
+        case TextureType::NormalMap:
+            return BC5Compress(data, textureDatas, width, height);
+        default:
+            return 0;
+    }
 }
 
 MaterialType ExporterHelper::GetMaterialType(const aiMaterial* material)
@@ -378,7 +442,23 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
         {
             auto & texture = texturesExportInfo[textureIndex + i];
             std::byte* uncompressedTextureData = uncompressedDataCache.data() + texture.Offset;
-            uint32_t compressedSize = ExporterHelper::BCCompress(type, uncompressedTextureData, textureDatas, texture.Width, texture.Height);
+
+            uint32_t compressedSize = 0;
+            if(type == NormalMap)
+            {
+                // Despite what I saw online, BC5 seems to only accept RG input and not RGBA
+                std::vector<std::byte> alignedData(texture.Width * texture.Height * 2);
+                for(uint32_t j = 0; j < texture.Width * texture.Height; j++)
+                {
+                    alignedData[j * 2 + 0] = uncompressedTextureData[j * 4 + 0];
+                    alignedData[j * 2 + 1] = uncompressedTextureData[j * 4 + 1];
+                }
+                compressedSize = ExporterHelper::BCCompress(type, alignedData.data(), textureDatas, texture.Width, texture.Height);
+            }
+            else
+            {
+                compressedSize = ExporterHelper::BCCompress(type, uncompressedTextureData, textureDatas, texture.Width, texture.Height);
+            }
 
             texture.Format = ExporterHelper::TextureTypeToFormat(type);
             texture.Offset = compressedOffset;
