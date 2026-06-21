@@ -2,6 +2,7 @@
 #include "application/DebugLayer.h"
 #include "assimp/material.h"
 #include <cstdint>
+#include <iostream>
 #include <span>
 #include <filesystem>
 #include <string>
@@ -124,11 +125,29 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
 
     uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
 
-    std::vector<uint8_t> dummy(width * height * 4, 0);
+    uint32_t padBuffer[16] = {0};
+    uint8_t* sourceData = reinterpret_cast<uint8_t*>(data);
+
+    if(width < 4 || height < 4)
+    {
+        uint32_t* source = reinterpret_cast<uint32_t*>(sourceData);
+        memset(padBuffer, 0, sizeof(uint32_t) * 16);
+        for(uint32_t i = 0; i < 4; i++)
+        {
+            for(uint32_t j = 0; j < 4; j++)
+            {
+                padBuffer[i * 4 + j] = source[std::min(i, height - 1) * width + std::min(j, width - 1)];
+            }
+        }
+
+        width = 4;
+        height = 4;
+        sourceData = reinterpret_cast<uint8_t*>(padBuffer);
+    }
 
     rgba_surface surface
     {
-        .ptr = dummy.data(),
+        .ptr = reinterpret_cast<uint8_t*>(sourceData),
         .width = static_cast<int32_t>(width),
         .height = static_cast<int32_t>(height),
         .stride = static_cast<int32_t>(width * 4)
@@ -136,33 +155,7 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
 
     if(type == NormalMap)
     {
-        for (uint32_t i = 0; i < width * height; ++i)
-        {
-            uint32_t idx = i * 4;
-            
-            uint8_t r = surface.ptr[idx + 0]; // X Component
-            uint8_t g = surface.ptr[idx + 1]; // Y Component
-            uint8_t b = surface.ptr[idx + 2]; // Z Component
-            
-            // NOTE: If your image.Internal().Format is VK_FORMAT_B8G8R8A8_UNORM, 
-            // uncomment the lines below to fix the Vulkan BGRA->RGBA channel inversion:
-            // uint8_t temp = r;
-            // r = b;
-            // b = temp;
-
-            surface.ptr[idx + 0] = 255; // Channel 1 (BC5 Red) -> X
-            surface.ptr[idx + 1] = 0; // Channel 2 (BC5 Green fallback) -> Y
-            surface.ptr[idx + 2] = 0; // Unused by BC5
-            surface.ptr[idx + 3] = 0; // CRITICAL: Duplicate Y component into Alpha for ISPC BC5
-            
-        }
         CompressBlocksBC5(&surface, blockData);
-
-        uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
-        uint64_t firstHalf = blockPtr[0];
-        uint64_t secondHalf = blockPtr[1];
-
-        DebugLayer::Log(DebugLayer::LogType::INFO, "Block 0: " + std::to_string(firstHalf) + " | " + std::to_string(secondHalf));
     }
     else
     {
@@ -170,6 +163,11 @@ uint32_t ExporterHelper::BCCompress(TextureType type, void* data, std::vector<st
         GetProfile_ultrafast(&settings);
         CompressBlocksBC7(&surface, blockData, &settings);
     }
+    uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
+    uint64_t firstHalf = blockPtr[0];
+    uint64_t secondHalf = blockPtr[1];
+
+    DebugLayer::Log(DebugLayer::LogType::INFO, "Block count X : " +  std::to_string(blockXCount) + " | Y : " + std::to_string(blockYCount) + " Size " + std::to_string(compressedSize) + " Block 0: " + std::to_string(firstHalf) + " | " + std::to_string(secondHalf));
     return compressedSize;
 }
 
@@ -277,6 +275,12 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
         info.Id = textureIndex;
         info.Format = mip0.Format;
 
+        if(info.Format == VK_FORMAT_BC5_UNORM_BLOCK)
+        {
+            auto block = (uint32_t*)(textureDatas.data() + mip0.Offset);
+            std::cout << block[0] << " " << block[1] << " " << block[2] << " " << block[3] << std::endl;
+        }
+
         return info;
     }
     else
@@ -296,18 +300,11 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
 
         size_t offset = textureDatas.size();
 
-        if(mip0.MipCount > 16)
-        {
-            // I don't think I will ever hit this but just in case
-            DebugLayer::Log(DebugLayer::LogType::WARNING, "Texture has too many mip levels " + texturePath.string());
-            return info;
-        }
-
         uint32_t textureIndex = texturesExportInfo.size();
         texturesExportInfo.resize(texturesExportInfo.size() + mip0.MipCount);
 
         VkBufferImageCopy region[16];
-        uint32_t curentWidth = mip0.Width;
+        uint32_t currentWidth = mip0.Width;
         uint32_t currentHeight = mip0.Height;
         uint32_t size = 0;
 
@@ -335,7 +332,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
                 },
                 .imageExtent =
                 {
-                    .width = curentWidth,
+                    .width = currentWidth,
                     .height = currentHeight,
                     .depth = 1
                 }
@@ -346,16 +343,16 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
                 texturesExportInfo[textureIndex + i] =
                 {
                     .Offset = size,
-                    .Size = curentWidth * currentHeight * bytePerPixel,
-                    .Width = curentWidth,
+                    .Size = currentWidth * currentHeight * bytePerPixel,
+                    .Width = currentWidth,
                     .Height = currentHeight,
                     .Format = mip0.Format,
                     .MipCount = 0
                 };
             }
 
-            size += curentWidth * currentHeight * bytePerPixel;
-            curentWidth = std::max(1u, curentWidth / 2);
+            size += currentWidth * currentHeight * bytePerPixel;
+            currentWidth = std::max(1u, currentWidth / 2);
             currentHeight = std::max(1u, currentHeight / 2);
         }
         texturesExportInfo[textureIndex] = mip0;
@@ -387,7 +384,7 @@ TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const
             texture.Offset = compressedOffset;
             texture.Size = compressedSize;
 
-            compressedOffset += compressedSize;
+            compressedOffset += texture.Size;
         }
 
         info.Format = ExporterHelper::TextureTypeToFormat(type);
