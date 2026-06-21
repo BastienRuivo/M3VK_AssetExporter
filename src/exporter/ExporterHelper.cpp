@@ -176,18 +176,14 @@ uint32_t BC5Compress(void* data, std::vector<std::byte> &textureDatas, uint32_t 
 
     uint32_t offset = static_cast<uint32_t>(textureDatas.size());
 
-    uint32_t compressedSize = blockXCount * blockYCount * 16;
-    textureDatas.resize(textureDatas.size() + compressedSize);
 
-    uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
-
-    uint32_t padBuffer[16] = {0};
+    uint16_t padBuffer[16] = {0};
     uint8_t* sourceData = reinterpret_cast<uint8_t*>(data);
     int32_t stride = width * 2;
 
     if(width < 4 || height < 4)
     {
-        uint32_t* source = reinterpret_cast<uint32_t*>(sourceData);
+        uint16_t* source = reinterpret_cast<uint16_t*>(sourceData);
         for(uint32_t y = 0; y < 4; y++)
         {
             uint32_t clampedY = std::min(y, height - 1);
@@ -201,7 +197,7 @@ uint32_t BC5Compress(void* data, std::vector<std::byte> &textureDatas, uint32_t 
         width = 4;
         height = 4;
         sourceData = reinterpret_cast<uint8_t*>(padBuffer);
-        stride = 16;
+        stride = 8;
     }
 
     rgba_surface surface
@@ -212,6 +208,10 @@ uint32_t BC5Compress(void* data, std::vector<std::byte> &textureDatas, uint32_t 
         .stride = stride
     };
 
+
+    uint32_t compressedSize = blockXCount * blockYCount * 16;
+    textureDatas.resize(textureDatas.size() + compressedSize);
+    uint8_t* blockData = (uint8_t*)textureDatas.data() + offset;
     CompressBlocksBC5(&surface, blockData);
     uint64_t* blockPtr = reinterpret_cast<uint64_t*>(blockData);
     uint64_t firstHalf = blockPtr[0];
