@@ -4,5 +4,14 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"cmake.additionalBuildProblemMatchers": [
+
+			
+			
+		],
+		"cmake.debugConfig": {
+			"args": ["-a", "/home/duskel/Documents/GitHub/M3VK_Ressources/Unexported/stanford_dragon_pbr/StanfordDragon.gltf", "/home/duskel/Documents/GitHub/M3VK_Ressources/Exported/StanfordDragon.m3vkasset"]
+		}
+	}
 }
