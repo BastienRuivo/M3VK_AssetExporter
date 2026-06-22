@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <sys/types.h>
 
 #include "application/Application.h"
 #include "application/DebugLayer.h"
@@ -35,10 +36,11 @@ int main(int argc, char* argv[])
 
     try
     {
+        u_char mode = argv[1][1];
         for(int i = 2; i < argc; i+=2)
         {
             DebugLayer::Log(DebugLayer::LogType::INFO, "Loading from: " + std::string(argv[i]) + " to: " + std::string(argv[i + 1]));
-            application.ExportAsset(argv[i], argv[i + 1]);
+            application.ExportFile(mode, argv[i], argv[i + 1]);
         }
     }
     catch (const std::exception& e)

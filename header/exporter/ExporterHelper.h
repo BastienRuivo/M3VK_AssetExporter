@@ -18,6 +18,6 @@ namespace ExporterHelper
     VkFormat TextureTypeToFormat(TextureType type);
 
     MaterialType GetMaterialType(const aiMaterial* material);
-    TextureLoadingInfo LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue, std::vector<TextureExport>& texturesExportInfo, std::vector<std::byte>& textureDatas, std::vector<std::byte>& uncompressedDataCache);
+    TextureLoadingInfo LoadTexture(const std::filesystem::path& path, TextureType type, VkCommandPool uploadPool, VkQueue uploadQueue, std::vector<TextureExport>& texturesExportInfo, std::vector<std::byte>& textureDatas, std::vector<std::byte>& uncompressedDataCache);
     uint32_t BCCompress(TextureType type, void* data, std::vector<std::byte> &textureDatas, uint32_t width, uint32_t height);
 }

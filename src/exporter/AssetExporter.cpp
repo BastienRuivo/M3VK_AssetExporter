@@ -83,9 +83,9 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             }
         }
 
-        auto baseColorInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
-        auto normalMapInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
-        auto mraoInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto baseColorInfo = ExporterHelper::LoadTexture(AssetExporter::GetTexturePath(material, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, textureRootPath), TextureType::BaseColor, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto normalMapInfo = ExporterHelper::LoadTexture(AssetExporter::GetTexturePath(material, {{ aiTextureType::aiTextureType_NORMALS }}, textureRootPath), TextureType::NormalMap, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto mraoInfo = ExporterHelper::LoadTexture(AssetExporter::GetTexturePath(material, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, textureRootPath), TextureType::MRAO, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
 
         if(baseColorInfo.Format == VK_FORMAT_BC3_UNORM_BLOCK || baseColorInfo.Format == VK_FORMAT_BC3_SRGB_BLOCK)
         {
@@ -238,7 +238,7 @@ void AssetExporter::Write(const std::filesystem::path& destinationPath) const
     }
 
     fwrite(&Version, sizeof(uint32_t), 1, file);
-    fwrite(&Header, sizeof(AssetExporterHeader), 1, file);
+    fwrite(&Header, sizeof(AssetExporter::Header), 1, file);
 
     // DATAS
     fwrite(Materials.data(), sizeof(MaterialExport), Header.MaterialCount, file);
@@ -269,7 +269,7 @@ bool AssetExporter::Load(const std::filesystem::path& sourcePath)
         return false;
     }
 
-    fread(&Header, sizeof(AssetExporterHeader), 1, file);
+    fread(&Header, sizeof(AssetExporter::Header), 1, file);
 
     // DATAS
     Materials.resize(Header.MaterialCount);
@@ -328,4 +328,26 @@ std::filesystem::path AssetExporter::FindTextureRoot(std::filesystem::path curre
     DebugLayer::Log(DebugLayer::LogType::WARNING, "Could not find textures directory " + current_path.string());
 
     return current_path.remove_filename();
+}
+
+std::filesystem::path AssetExporter::GetTexturePath(aiMaterial* material, std::span<const aiTextureType> types, const std::filesystem::path& rootPath)
+{
+    uint32_t textureCount = 0;
+    aiTextureType textureType = ExporterHelper::SelectTextureType(types, material, textureCount);
+    if(textureCount == 0) return "";
+
+    aiString path;
+    material->GetTexture(textureType, 0, &path);
+
+    if(path.length == 0)
+    {
+        DebugLayer::Log(DebugLayer::LogType::WARNING, "Found a texture with a 0 length path");
+        return "";
+    }
+
+    std::string rawPath = path.C_Str();
+    std::replace(rawPath.begin(), rawPath.end(), '\\', '/');
+    std::filesystem::path texturePath = rootPath / std::filesystem::path(rawPath).filename();
+
+    return texturePath;
 }

@@ -240,37 +240,20 @@ MaterialType ExporterHelper::GetMaterialType(const aiMaterial* material)
     return MaterialType::Opaque;
 }
 
-TextureLoadingInfo ExporterHelper::LoadTexture(const aiMaterial* material, const std::filesystem::path rootPath, TextureType type, std::span<const aiTextureType> types, VkCommandPool uploadPool, VkQueue uploadQueue, std::vector<TextureExport>& texturesExportInfo, std::vector<std::byte>& textureDatas, std::vector<std::byte>& uncompressedDataCache)
+TextureLoadingInfo ExporterHelper::LoadTexture(const std::filesystem::path& texturePath, TextureType type, VkCommandPool uploadPool, VkQueue uploadQueue, std::vector<TextureExport>& texturesExportInfo, std::vector<std::byte>& textureDatas, std::vector<std::byte>& uncompressedDataCache)
 {
     TextureLoadingInfo info
     {
         .Id = static_cast<uint32_t>(UINT32_MAX),
         .Format = VK_FORMAT_UNDEFINED
     };
-    uint32_t textureCount = 0;
-    aiTextureType textureType = ExporterHelper::SelectTextureType(types, material, textureCount);
-    if(textureCount == 0) return info;
 
-    aiString path;
-    material->GetTexture(textureType, 0, &path);
-
-    if(path.length == 0)
+    if(texturePath.empty() || std::filesystem::exists(texturePath) == false)
     {
-        DebugLayer::Log(DebugLayer::LogType::WARNING, "Found a texture with a 0 length path");
         return info;
     }
 
-    std::string rawPath = path.C_Str();
-    std::replace(rawPath.begin(), rawPath.end(), '\\', '/');
-
-    std::filesystem::path texturePath = rootPath / std::filesystem::path(rawPath).filename();
-
-    if(!std::filesystem::exists(texturePath))
-    {
-        DebugLayer::Log(DebugLayer::LogType::WARNING, "Path does not exist " + texturePath.string());
-        return info;
-    }
-    else if(texturePath.extension() == ".dds") // handle compressed textures directly
+    if(texturePath.extension() == ".dds") // handle compressed textures directly
     {
         tinyddsloader::DDSFile file;
         auto ret = file.Load(texturePath.string().c_str());

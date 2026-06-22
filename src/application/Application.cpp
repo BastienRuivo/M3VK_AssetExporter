@@ -1,12 +1,14 @@
 #include "application/Application.h"
 #include "application/DebugLayer.h"
 #include "exporter/AssetExporter.h"
+#include "exporter/MaterialExporter.h"
 #include <filesystem>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/fwd.hpp>
 #include <glm/trigonometric.hpp>
+#include <sys/types.h>
 
 #ifdef M3VK_MEMORYLOG
 #include <string>
@@ -34,13 +36,13 @@ Application::~Application()
 {
 }
 
-void RecursiveModelSearch(std::filesystem::path path, std::vector<std::filesystem::path>& toExport, const std::vector<std::string>& extensions)
+void RecursiveFileSearch(std::filesystem::path path, std::vector<std::filesystem::path>& toExport, const std::vector<std::string>& extensions)
 {
     if(std::filesystem::is_directory(path))
     {
         for(const auto& entry : std::filesystem::directory_iterator(path))
         {
-            RecursiveModelSearch(entry.path(), toExport, extensions);
+            RecursiveFileSearch(entry.path(), toExport, extensions);
         }
     }
     else if(std::filesystem::is_regular_file(path))
@@ -56,7 +58,7 @@ void RecursiveModelSearch(std::filesystem::path path, std::vector<std::filesyste
     }
 }
 
-void Application::ExportAsset(std::filesystem::path sourcePath, std::filesystem::path targetPath)
+void Application::ExportFile(u_char mode, std::filesystem::path sourcePath, std::filesystem::path targetPath)
 {
     bool sourceIsDir = std::filesystem::is_directory(sourcePath);
     bool targetIsDir = std::filesystem::is_directory(targetPath);
@@ -74,13 +76,29 @@ void Application::ExportAsset(std::filesystem::path sourcePath, std::filesystem:
     }
 
     std::vector<std::filesystem::path> toExport;
-    RecursiveModelSearch(sourcePath, toExport, std::vector<std::string>({".obj", ".fbx", ".gltf"}));
+    if(mode == 'a')
+    {
+        RecursiveFileSearch(sourcePath, toExport, std::vector<std::string>({".obj", ".fbx", ".gltf"}));
+    }
+    else if(mode == 'm')
+    {
+        RecursiveFileSearch(sourcePath, toExport, std::vector<std::string>({".json"}));
+    }
 
     for(const auto& path : toExport)
     {
-        AssetExporter exporter = AssetExporter::Load3DModel(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
-        std:std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkasset");
-        exporter.Write(target);
+        if(mode == 'a')
+        {
+            AssetExporter exporter = AssetExporter::Load3DModel(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
+            std:std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkasset");
+            exporter.Write(target);
+        }
+        else if(mode == 'm')
+        {
+            MaterialExporter exporter = MaterialExporter::LoadMaterial(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
+            std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkmaterial");
+            exporter.Write(target);
+        }
     }
 
 }

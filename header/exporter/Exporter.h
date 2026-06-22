@@ -84,16 +84,6 @@ struct SubMeshExport
     glm::vec3 AABBMax;
 };
 
-struct AssetExporterHeader
-{
-    uint64_t MaterialCount;
-    uint64_t TextureCount;
-    uint64_t TextureDataCount;
-    uint64_t SubMeshCount;
-    uint64_t VertexCount;
-    uint64_t IndexCount;
-};
-
 struct TextureLoadingInfo
 {
     uint32_t Id;

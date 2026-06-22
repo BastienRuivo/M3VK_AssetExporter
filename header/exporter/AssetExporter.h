@@ -1,10 +1,23 @@
 #pragma once
 
+#include "assimp/material.h"
 #include "exporter/Exporter.h"
 #include "exporter/Vertex.h"
+#include <span>
+
+
 
 struct AssetExporter : public Exporter
 {
+    struct Header
+    {
+        uint64_t MaterialCount;
+        uint64_t TextureCount;
+        uint64_t TextureDataCount;
+        uint64_t SubMeshCount;
+        uint64_t VertexCount;
+        uint64_t IndexCount;
+    };
     // V0 -> Initial Version
     // V1 -> Added BaseColor, Metallic, Roughness textures ID
     // V2 -> Added AABB
@@ -13,7 +26,7 @@ struct AssetExporter : public Exporter
     // V5 -> Memory leak fix
     static constexpr uint32_t VERSION = 5;
 
-    AssetExporterHeader Header;
+    Header Header;
 
     std::vector<MaterialExport> Materials;
     std::vector<TextureExport> Textures;
@@ -28,8 +41,9 @@ struct AssetExporter : public Exporter
     AssetExporter(AssetExporter&& other) noexcept;
     AssetExporter& operator=(AssetExporter&& other) noexcept;
 
+    static std::filesystem::path GetTexturePath(aiMaterial* material, std::span<const aiTextureType> types, const std::filesystem::path& rootPath);
     static std::filesystem::path FindTextureRoot(std::filesystem::path current_path) ;
-    static AssetExporter Load3DModel(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue);
+    static AssetExporter Load3DModel(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue);
 
     void Write(const std::filesystem::path& destinationPath) const override;
     bool Load(const std::filesystem::path& sourcePath) override;
