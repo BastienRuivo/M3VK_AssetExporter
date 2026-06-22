@@ -10,8 +10,9 @@ struct AssetExporter : public Exporter
     // V2 -> Added AABB
     // V3 -> Adding multiple shader supports
     // V4 -> Adding Tangeants
-    static constexpr uint32_t VERSION = 4;
-    
+    // V5 -> Memory leak fix
+    static constexpr uint32_t VERSION = 5;
+
     AssetExporterHeader Header;
 
     std::vector<MaterialExport> Materials;
