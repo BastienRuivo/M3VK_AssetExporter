@@ -35,14 +35,14 @@ enum MaterialType
 
 struct MaterialExport
 {
-    alignas(4) uint32_t BaseColorTexId;
-    alignas(4) uint32_t NormalMapTexId;
-    alignas(4) uint32_t MRAOTexId;
-    alignas(4) uint32_t MaterialType;
+    uint32_t BaseColorTexId;
+    uint32_t NormalMapTexId;
+    uint32_t MRAOTexId;
+    uint32_t MaterialType;
 
-    alignas(16) glm::vec4 BaseColor;
-    alignas(4) float Metallic;
-    alignas(4) float Roughness;
+    glm::vec4 BaseColor;
+    float Metallic;
+    float Roughness;
 
     static constexpr uint32_t Stride();
 
