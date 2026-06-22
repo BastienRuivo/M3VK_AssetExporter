@@ -83,20 +83,20 @@ AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath
             }
         }
 
-        //auto baseColorInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
-        //auto normalMapInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
-        //auto mraoInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto baseColorInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::BaseColor, {{ aiTextureType::aiTextureType_BASE_COLOR, aiTextureType::aiTextureType_DIFFUSE }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto normalMapInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::NormalMap, {{ aiTextureType::aiTextureType_NORMALS }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
+        auto mraoInfo = ExporterHelper::LoadTexture(material, textureRootPath, TextureType::MRAO, {{ aiTextureType::aiTextureType_AMBIENT_OCCLUSION }}, uploadPool, uploadQueue, exporter.Textures, exporter.TextureDatas, exporter.UncompressedDataCache);
 
-        /*if(baseColorInfo.Format == VK_FORMAT_BC3_UNORM_BLOCK || baseColorInfo.Format == VK_FORMAT_BC3_SRGB_BLOCK)
+        if(baseColorInfo.Format == VK_FORMAT_BC3_UNORM_BLOCK || baseColorInfo.Format == VK_FORMAT_BC3_SRGB_BLOCK)
         {
             materialType = isTwoSided ? MaterialType::CutoutTwoSided : MaterialType::Cutout;
-        }*/
+        }
 
         MaterialExport materialProperties =
         {
-            .BaseColorTexId = UINT32_MAX,//baseColorInfo.Id,
-            .NormalMapTexId = UINT32_MAX,//normalMapInfo.Id,
-            .MRAOTexId = UINT32_MAX,//mraoInfo.Id,
+            .BaseColorTexId = baseColorInfo.Id,
+            .NormalMapTexId = normalMapInfo.Id,
+            .MRAOTexId = mraoInfo.Id,
             .MaterialType = materialType,
 
             .BaseColor = glm::vec4(static_cast<float>(color.r),
