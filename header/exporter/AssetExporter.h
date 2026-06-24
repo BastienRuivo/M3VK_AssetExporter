@@ -35,17 +35,15 @@ struct AssetExporter : public Exporter
     std::vector<Vertex> VertexDatas;
     std::vector<uint32_t> IndexDatas;
 
-    std::vector<std::byte> UncompressedDataCache;
-
     AssetExporter() = default;
     AssetExporter(AssetExporter&& other) noexcept;
     AssetExporter& operator=(AssetExporter&& other) noexcept;
 
     static std::filesystem::path GetTexturePath(aiMaterial* material, std::span<const aiTextureType> types, const std::filesystem::path& rootPath);
     static std::filesystem::path FindTextureRoot(std::filesystem::path current_path) ;
-    static AssetExporter Load3DModel(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue);
+    static AssetExporter Load(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue);
 
     void Write(const std::filesystem::path& destinationPath) const override;
-    bool Load(const std::filesystem::path& sourcePath) override;
+    bool LoadData(const std::filesystem::path& sourcePath) override;
     void Clear() override;
 };

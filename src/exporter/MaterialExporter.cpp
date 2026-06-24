@@ -17,7 +17,7 @@
 
 using json = nlohmann::json;
 
-MaterialExporter MaterialExporter::LoadMaterial(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue)
+MaterialExporter MaterialExporter::Load(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue)
 {
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -146,7 +146,7 @@ void MaterialExporter::Write(const std::filesystem::path& destinationPath) const
     fclose(file);
 }
 
-bool MaterialExporter::Load(const std::filesystem::path& sourcePath)
+bool MaterialExporter::LoadData(const std::filesystem::path& sourcePath)
 {
     auto file = fopen(sourcePath.string().c_str(), "rb");
 

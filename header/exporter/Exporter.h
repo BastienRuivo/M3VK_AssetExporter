@@ -94,7 +94,9 @@ struct Exporter
 {
     uint32_t Version;
 
+    std::vector<std::byte> UncompressedDataCache;
+
     virtual void Write(const std::filesystem::path& destinationPath) const = 0;
-    virtual bool Load(const std::filesystem::path& sourcePath) = 0;
+    virtual bool LoadData(const std::filesystem::path& sourcePath) = 0;
     virtual void Clear() = 0;
 };

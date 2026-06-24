@@ -18,16 +18,14 @@ struct MaterialExporter : public Exporter
     std::vector<TextureExport> Textures;
     std::vector<std::byte> TextureDatas;
 
-    std::vector<std::byte> UncompressedDataCache;
-
     MaterialExporter() = default;
     MaterialExporter(MaterialExporter&& other) noexcept;
     MaterialExporter& operator=(MaterialExporter&& other) noexcept;
 
     static std::filesystem::path FindTextureRoot(const std::filesystem::path& current_path) ;
-    static MaterialExporter LoadMaterial(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue);
+    static MaterialExporter Load(const std::filesystem::path & path, VkCommandPool uploadPool, VkQueue uploadQueue);
 
     void Write(const std::filesystem::path& destinationPath) const override;
-    bool Load(const std::filesystem::path& sourcePath) override;
+    bool LoadData(const std::filesystem::path& sourcePath) override;
     void Clear() override;
 };

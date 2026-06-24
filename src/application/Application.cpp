@@ -65,7 +65,7 @@ void Application::ExportFile(u_char mode, std::filesystem::path sourcePath, std:
 
     if(!sourceIsDir && !targetIsDir)
     {
-        AssetExporter exporter = AssetExporter::Load3DModel(sourcePath, _uploadCommandPool.Internal(), _uploadQueue.Internal());
+        AssetExporter exporter = AssetExporter::Load(sourcePath, _uploadCommandPool.Internal(), _uploadQueue.Internal());
         exporter.Write(targetPath);
         return;
     }
@@ -84,18 +84,22 @@ void Application::ExportFile(u_char mode, std::filesystem::path sourcePath, std:
     {
         RecursiveFileSearch(sourcePath, toExport, std::vector<std::string>({".json"}));
     }
+    else if(mode == 't')
+    {
+        RecursiveFileSearch(sourcePath, toExport, std::vector<std::string>({".png", ".jpg", ".jpeg"}));
+    }
 
     for(const auto& path : toExport)
     {
         if(mode == 'a')
         {
-            AssetExporter exporter = AssetExporter::Load3DModel(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
+            AssetExporter exporter = AssetExporter::Load(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
             std:std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkasset");
             exporter.Write(target);
         }
         else if(mode == 'm')
         {
-            MaterialExporter exporter = MaterialExporter::LoadMaterial(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
+            MaterialExporter exporter = MaterialExporter::Load(path, _uploadCommandPool.Internal(), _uploadQueue.Internal());
             std::filesystem::path target = targetPath / path.filename().replace_extension(".m3vkmaterial");
             exporter.Write(target);
         }

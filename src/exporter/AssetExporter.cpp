@@ -16,7 +16,7 @@
 #include <vulkan/vulkan_core.h>
 
 
-AssetExporter AssetExporter::Load3DModel(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue)
+AssetExporter AssetExporter::Load(const std::filesystem::path & modelPath, VkCommandPool uploadPool, VkQueue uploadQueue)
 {
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
@@ -251,7 +251,7 @@ void AssetExporter::Write(const std::filesystem::path& destinationPath) const
     fclose(file);
 }
 
-bool AssetExporter::Load(const std::filesystem::path& sourcePath)
+bool AssetExporter::LoadData(const std::filesystem::path& sourcePath)
 {
     auto file = fopen(sourcePath.string().c_str(), "rb");
 
